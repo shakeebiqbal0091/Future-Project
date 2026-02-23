@@ -1,0 +1,49 @@
+# FastAPI Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database
+SQLAlchemy==2.0.23
+alembic==1.13.0
+psycopg2-binary==2.9.9  # For PostgreSQL
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+python-dotenv==1.0.0
+
+# HTTP Client
+httpx==0.25.2
+
+# Utility Libraries
+python-slugify==7.0.0
+python-multipart==0.0.6
+python-dateutil==2.8.2
+
+# Validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+pydantic-core==2.5.0
+
+# Payment Processing (for billing)
+stripe==15.2.0
+
+# Async Support
+asyncpg==0.29.0
+
+# Development
+black==23.12.1
+flake8==7.0.0
+mypy==1.9.1
+pytest==7.4.3
+pytest-asyncio==0.23.3
+httpx==0.25.2
+pytest-cov==4.1.0
+
+# Optional: For better performance
+pydantic==2.5.0
+pydantic-settings==2.1.0
+pydantic-core==2.5.0

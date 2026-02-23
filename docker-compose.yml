@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    build:
+      context: ./docker/postgres
+    container_name: ai_orchestration_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_orchestration}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ai_orchestration_network
+
+  # Redis Cache
+  redis:
+    build:
+      context: ./docker/redis
+    container_name: ai_orchestration_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai_orchestration_network
+
+  # Backend FastAPI Service
+  backend:
+    build:
+      context: ./docker/backend
+    container_name: ai_orchestration_backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-ai_orchestration}
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app:rw
+      - ./common:/common:rw
+      - ./shared:/shared:rw
+      - ./scripts:/scripts:rw
+      - ./tests:/tests:rw
+      - ./config:/config:rw
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ai_orchestration_network
+    command: ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+
+  # Frontend Next.js Service
+  frontend:
+    build:
+      context: ./docker/frontend
+    container_name: ai_orchestration_frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:${BACKEND_PORT:-8000}
+      - NODE_ENV=development
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app:rw
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - ai_orchestration_network
+    command: ["npm", "run", "dev"]
+
+  # Celery Worker for Async Tasks
+  celery_worker:
+    build:
+      context: ./docker/backend
+    container_name: ai_orchestration_celery_worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-ai_orchestration}
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app:rw
+      - ./common:/common:rw
+      - ./shared:/shared:rw
+      - ./scripts:/scripts:rw
+      - ./tests:/tests:rw
+      - ./config:/config:rw
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    networks:
+      - ai_orchestration_network
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=INFO", "--concurrency=4"]
+
+  # Celery Beat for Scheduled Tasks
+  celery_beat:
+    build:
+      context: ./docker/backend
+    container_name: ai_orchestration_celery_beat
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-ai_orchestration}
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app:rw
+      - ./common:/common:rw
+      - ./shared:/shared:rw
+      - ./scripts:/scripts:rw
+      - ./tests:/tests:rw
+      - ./config:/config:rw
+    depends_on:
+      - postgres
+      - redis
+      - celery_worker
+    networks:
+      - ai_orchestration_network
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=INFO"]
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ai_orchestration_network:
+    driver: bridge
