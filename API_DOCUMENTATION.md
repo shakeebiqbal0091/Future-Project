@@ -210,7 +210,7 @@ slack_integration = IntegrationCreate(
     name="My Slack Workspace",
     credentials_encrypted="encrypted-credentials",
     config={
-        "bot_token": "xoxb-123456789012-123456789012-abcdefghijklmnop"
+        "bot_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     },
     status=IntegrationStatusEnum.connected
 )
